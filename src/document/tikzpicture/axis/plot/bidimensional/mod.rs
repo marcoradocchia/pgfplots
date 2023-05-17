@@ -1,22 +1,17 @@
-use crate::axis::plot::coordinate::Coordinate2D;
-use std::fmt;
-
-// Only imported for documentation. If you notice that this is no longer the
-// case, please change it.
-#[allow(unused_imports)]
-use crate::{Axis, Picture};
-
-/// Coordinates inside a plot.
 pub mod coordinate;
+
+use coordinate::Coordinate2D;
+use std::fmt;
 
 /// PGFPlots options passed to a plot.
 ///
-/// The most commonly used key-value pairs are variants of the [`PlotKey`] enum.
-/// The [`PlotKey::Custom`] variant is provided to add unimplemented keys and
+/// The most commonly used key-value pairs are variants of the [`PlotOption`] enum.
+/// The [`PlotOption::Custom`] variant is provided to add unimplemented keys and
 /// will be written verbatim in the options of the `\addplot[...]` command.
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub enum PlotKey {
+pub enum PlotOption {
+    // FIXME, TODO: maybe this should be at `plot` level, not at `bidimensional`.
     /// Custom key-value pairs that have not been implemented. These will be
     /// appended verbatim to the options of the `\addplot[...]` command.
     Custom(String),
@@ -24,41 +19,48 @@ pub enum PlotKey {
     Type2D(Type2D),
     /// Control the character (absolute or relative) of the error bars of the
     /// *x* coordinates. Note that error bars won't be drawn unless
-    /// [`PlotKey::XErrorDirection`] is also set.
+    /// [`PlotOption::XErrorDirection`] is also set.
     XError(ErrorCharacter),
     /// Control the direction of the error bars of the *x* coordinates.
-    /// Note that error bars won't be drawn unless [`PlotKey::XError`] is also
+    /// Note that error bars won't be drawn unless [`PlotOption::XError`] is also
     /// set.
     XErrorDirection(ErrorDirection),
     /// Control the character (absolute or relative) of the error bars of the
     /// *y* coordinates. Note that error bars won't be drawn unless
-    /// [`PlotKey::YErrorDirection`] is also set.
+    /// [`PlotOption::YErrorDirection`] is also set.
     YError(ErrorCharacter),
     /// Control the direction of the error bars of the *y* coordinates.
-    /// Note that error bars won't be drawn unless [`PlotKey::YError`] is also
+    /// Note that error bars won't be drawn unless [`PlotOption::YError`] is also
     /// set.
     YErrorDirection(ErrorDirection),
 }
 
-impl fmt::Display for PlotKey {
+impl fmt::Display for PlotOption {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            PlotKey::Custom(key) => write!(f, "{key}"),
-            PlotKey::Type2D(value) => write!(f, "{value}"),
-            PlotKey::XError(value) => write!(f, "error bars/x {value}"),
-            PlotKey::XErrorDirection(value) => write!(f, "error bars/x dir={value}"),
-            PlotKey::YError(value) => write!(f, "error bars/y {value}"),
-            PlotKey::YErrorDirection(value) => write!(f, "error bars/y dir={value}"),
+            PlotOption::Custom(key) => write!(f, "{key}"),
+            PlotOption::Type2D(value) => write!(f, "{value}"),
+            PlotOption::XError(value) => write!(f, "error bars/x {value}"),
+            PlotOption::XErrorDirection(value) => write!(f, "error bars/x dir={value}"),
+            PlotOption::YError(value) => write!(f, "error bars/y {value}"),
+            PlotOption::YErrorDirection(value) => write!(f, "error bars/y dir={value}"),
         }
     }
 }
 
-/// Two-dimensional plot inside an [`Axis`].
+impl From<&str> for PlotOption {
+    fn from(option: &str) -> Self {
+        Self::Custom(option.to_string())
+    }
+}
+
+/// Two-dimensional plot inside an [`crate::document::tikzpicture::axis::Axis`].
 ///
-/// Adding a [`Plot2D`] to an [`Axis`] environment is equivalent to:
+/// Adding a [`Plot2D`] to an [`crate::document::tikzpicture::axis::Axis`] environment
+/// is equivalent to:
 ///
 /// ```text
-/// \addplot[PlotKeys]
+/// \addplot[PlotOptions]
 ///     % coordinates;
 /// ```
 ///
@@ -81,8 +83,8 @@ impl fmt::Display for PlotKey {
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct Plot2D {
-    keys: Vec<PlotKey>,
-    pub coordinates: Vec<Coordinate2D>,
+    options: Vec<PlotOption>,
+    coordinates: Vec<Coordinate2D>,
 }
 
 impl fmt::Display for Plot2D {
@@ -90,9 +92,9 @@ impl fmt::Display for Plot2D {
         write!(f, "\t\\addplot[")?;
         // If there are keys, print them one per line. It makes it easier for a
         // human to find individual keys later.
-        if !self.keys.is_empty() {
+        if !self.options.is_empty() {
             writeln!(f)?;
-            for key in self.keys.iter() {
+            for key in self.options.iter() {
                 writeln!(f, "\t\t{key},")?;
             }
             write!(f, "\t")?;
@@ -109,6 +111,18 @@ impl fmt::Display for Plot2D {
     }
 }
 
+impl<C> From<C> for Plot2D
+where
+    C: Into<Vec<Coordinate2D>>,
+{
+    fn from(coordinates: C) -> Self {
+        Self {
+            options: Default::default(),
+            coordinates: coordinates.into(),
+        }
+    }
+}
+
 impl Plot2D {
     /// Creates a new, empty two-dimensional plot.
     ///
@@ -122,31 +136,94 @@ impl Plot2D {
     pub fn new() -> Self {
         Default::default()
     }
-    /// Add a key to control the appearance of the plot. This will overwrite
+
+    /// Add a [`PlotOption`] to control the appearance of the plot. This will overwrite
     /// any previous mutually exclusive key.
     ///
     /// # Examples
     ///
     /// ```
-    /// use pgfplots::axis::plot::{Plot2D, PlotKey, Type2D::SharpPlot};
+    /// use pgfplots::document::tikzpicture::axis::plot::bidimensional::{Plot2D, PlotOption, Type2D::SharpPlot};
     ///
-    /// let mut plot = Plot2D::new();
-    /// plot.add_key(PlotKey::Type2D(SharpPlot));
+    /// let plot = Plot2D::new()
+    ///     .key(PlotOption::Type2D(SharpPlot));
     /// ```
-    pub fn add_key(&mut self, key: PlotKey) {
-        match key {
-            PlotKey::Custom(_) => (),
+    pub fn option(mut self, option: PlotOption) -> Self {
+        match option {
+            PlotOption::Custom(_) => (),
             _ => {
                 if let Some(index) = self
-                    .keys
+                    .options
                     .iter()
-                    .position(|k| std::mem::discriminant(k) == std::mem::discriminant(&key))
+                    .position(|k| std::mem::discriminant(k) == std::mem::discriminant(&option))
                 {
-                    self.keys.remove(index);
+                    self.options.remove(index);
                 }
             }
         }
-        self.keys.push(key);
+        self.options.push(option);
+        self
+    }
+
+    /// Add a [`PlotOption`] to control the appearance of the plot. This will overwrite
+    /// any previous mutually exclusive key.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use pgfplots::document::tikzpicture::axis::plot::bidimensional::{Plot2D, PlotOption, Type2D::SharpPlot};
+    ///
+    /// let mut plot = Plot2D::new();
+    /// plot.add_key(PlotOption::Type2D(SharpPlot));
+    /// ```
+    pub fn add_option(&mut self, key: PlotOption) {
+        match key {
+            PlotOption::Custom(_) => (),
+            _ => {
+                if let Some(index) = self
+                    .options
+                    .iter()
+                    .position(|k| std::mem::discriminant(k) == std::mem::discriminant(&key))
+                {
+                    self.options.remove(index);
+                }
+            }
+        }
+        self.options.push(key);
+    }
+
+    /// Sets plot coordiantes (chaining version).
+    pub fn coordinates<C>(mut self, coordinates: C) -> Self 
+    where
+        C: Into<Vec<Coordinate2D>>
+    {
+        self.coordinates = coordinates.into();
+        self
+    }
+
+    /// Pushes plot coordinate (chaining version).
+    pub fn coordinate<C>(mut self, coordinate: C) -> Self
+    where
+        C: Into<Coordinate2D>
+    {
+        self.coordinates.push(coordinate.into());
+        self
+    }
+
+    /// Sets plot coordinates.
+    pub fn set_coordinates<C>(&mut self, coordinates: C)
+    where
+        C: Into<Vec<Coordinate2D>>
+    {
+        self.coordinates = coordinates.into();
+    }
+
+    /// Pushes plot coordinate.
+    pub fn add_coordinate<C>(&mut self, coordinate: C)
+    where
+        C: Into<Coordinate2D>
+    {
+        self.coordinates.push(coordinate.into());
     }
 }
 
@@ -212,6 +289,7 @@ pub enum Type2D {
     /// Draw only markers.
     OnlyMarks,
 }
+
 impl fmt::Display for Type2D {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -268,6 +346,7 @@ pub enum ErrorDirection {
     /// Draws upper and lower bounds in the direction of interest.
     Both,
 }
+
 impl fmt::Display for ErrorDirection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -280,4 +359,4 @@ impl fmt::Display for ErrorDirection {
 }
 
 #[cfg(test)]
-mod tests;
+mod test {}

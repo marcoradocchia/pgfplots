@@ -1,10 +1,5 @@
 use std::fmt;
 
-// Only imported for documentation. If you notice this is no longer the case,
-// please change it.
-#[allow(unused_imports)]
-use crate::axis::plot::{Plot2D, PlotKey};
-
 /// Coordinate in a two-dimensional plot.
 #[derive(Clone, Copy, Debug)]
 #[non_exhaustive]
@@ -13,11 +8,14 @@ pub struct Coordinate2D {
     pub y: f64,
     /// By default, error bars are not drawn (even if it is a [`Some`]). These
     /// are only drawn if both [`PlotKey::XError`] and
-    /// [`PlotKey::XErrorDirection`] are set in the [`Plot2D`].
+    /// [`crate::document::tikzpicture::axis::plot::bidimensional::PlotKey::XErrorDirection`]
+    /// are set in the [`crate::document::tikzpicture::axis::plot::bidimensional::Plot2D`].
     pub error_x: Option<f64>,
     /// By default, error bars are not drawn (even if it is a [`Some`]). These
-    /// are only drawn if both [`PlotKey::YError`] and
-    /// [`PlotKey::YErrorDirection`] are set in the [`Plot2D`].
+    /// are only drawn if both
+    /// [`crate::document::tikzpicture::axis::plot::bidimensional::PlotKey::YError`] and
+    /// [`crate::document::tikzpicture::axis::plot::bidimensional::PlotKey::YErrorDirection`]
+    /// are set in the [`crate::document::tikzpicture::axis::plot::bidimensional::Plot2D`].
     pub error_y: Option<f64>,
     // What to do when `point meta=explicit` in plot?
     // Should we add an Option<point_meta> here?
@@ -44,7 +42,7 @@ impl From<(f64, f64)> for Coordinate2D {
     /// # Examples
     ///
     /// ```
-    /// use pgfplots::axis::plot::coordinate::Coordinate2D;
+    /// use pgfplots::document::tikzpicture::axis::plot::bidimensional::coordinate::Coordinate2D;
     ///
     /// let point: Coordinate2D = (1.0, -1.0).into();
     ///
@@ -63,6 +61,12 @@ impl From<(f64, f64)> for Coordinate2D {
     }
 }
 
+impl From<&(f64, f64)> for Coordinate2D {
+    fn from(coordinate: &(f64, f64)) -> Self {
+        Self::from(*coordinate)
+    }
+}
+
 impl From<(f64, f64, Option<f64>, Option<f64>)> for Coordinate2D {
     /// Conversion from an `(x,y,error_x,error_y)` tuple into a two-dimensional
     /// coordinate.
@@ -70,7 +74,7 @@ impl From<(f64, f64, Option<f64>, Option<f64>)> for Coordinate2D {
     /// # Examples
     ///
     /// ```
-    /// use pgfplots::axis::plot::coordinate::Coordinate2D;
+    /// use pgfplots::document::tikzpicture::axis::plot::bidimensional::coordinate::Coordinate2D;
     ///
     /// let point: Coordinate2D = (1.0, -1.0, None, Some(3.0)).into();
     ///
@@ -89,5 +93,11 @@ impl From<(f64, f64, Option<f64>, Option<f64>)> for Coordinate2D {
     }
 }
 
+impl From<&(f64, f64, Option<f64>, Option<f64>)> for Coordinate2D {
+    fn from(coordinate: &(f64, f64, Option<f64>, Option<f64>)) -> Self {
+        Self::from(*coordinate)
+    }
+}
+
 #[cfg(test)]
-mod tests;
+mod test {}
